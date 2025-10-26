@@ -76,4 +76,7 @@ class ArticleCreate(BaseModel):
     content: Optional[str] = None
     url: Optional[str] = None
     published_at: Optional[datetime] = None
+    language: Optional[str] = None
+    country: Optional[str] = None
+    entities: Optional[dict] = None
     raw_metadata: Optional[dict] = None

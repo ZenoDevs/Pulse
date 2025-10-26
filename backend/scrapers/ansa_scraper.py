@@ -105,8 +105,13 @@ class AnsaScraper(BaseScraper):
             # Converti date
             if not df.empty:
                 df['Date'] = df['Date'].apply(convert_ansa_date)
-                df['source_id'] = df['url'].apply(
-                    lambda x: x.split('/')[-1] if x else None
+                # Genera source_id: prima da URL, poi hash del titolo
+                df['source_id'] = df.apply(
+                    lambda row: (
+                        row['url'].split('/')[-1] if row['url'] 
+                        else f"ansa_{hash(row['Title'])}"
+                    ),
+                    axis=1
                 )
             
             # Normalizza output

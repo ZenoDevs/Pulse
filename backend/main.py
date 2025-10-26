@@ -49,8 +49,9 @@ async def health():
     }
 
 
-# TODO: Import routes when created
-# from backend.api import topics, articles, search
-# app.include_router(topics.router, prefix=settings.API_PREFIX)
-# app.include_router(articles.router, prefix=settings.API_PREFIX)
-# app.include_router(search.router, prefix=settings.API_PREFIX)
+# Import API routers
+from api import articles, scraping, stats
+
+app.include_router(articles.router, prefix="/api/articles", tags=["articles"])
+app.include_router(scraping.router, prefix="/api/scraping", tags=["scraping"])
+app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
