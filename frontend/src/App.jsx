@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { Globe2, BellRing, FileText, Sparkles, ShieldCheck, Lock, Download, ChevronRight, LineChart, Search, RefreshCw } from "lucide-react";
-import { getArticles, getStats, groupArticlesByTopic } from "./services/api";
+import { getTopics, getStats, transformTopic } from "./services/api";
 
 // Reference data
 const COUNTRIES = [
@@ -47,7 +47,8 @@ function TrendCard({ topic, onOpen }) {
             <div className="mt-2 flex items-center gap-3 text-xs text-neutral-500">
               <span className="inline-flex items-center gap-1"><LineChart className="w-4 h-4" /> vel {Math.round(topic.velocity * 100)}%</span>
               <span>spread {topic.spread}</span>
-              <span>sent {topic.sentiment}</span>
+              <span>vol {topic.volume || 0}</span>
+              <span>nov {Math.round(topic.novelty * 100)}%</span>
             </div>
           </div>
           <ChevronRight className="w-5 h-5 text-neutral-400" />
@@ -71,22 +72,30 @@ function TopicDrawer({ open, topic, onClose, mode }) {
           <button onClick={onClose} className="text-neutral-500 hover:text-neutral-800">Chiudi</button>
         </div>
         <p className="mt-2 text-neutral-600">{topic.summary}</p>
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="mt-4 grid grid-cols-3 gap-3">
           <div className="rounded-xl border p-3">
-            <div className="text-sm text-neutral-500">Pulse attuale</div>
+            <div className="text-sm text-neutral-500">Pulse Score</div>
             <div className="text-2xl font-semibold">{topic.pulse}</div>
           </div>
           <div className="rounded-xl border p-3">
+            <div className="text-sm text-neutral-500">Volume 24h</div>
+            <div className="text-2xl font-semibold">{topic.volume || 0}</div>
+          </div>
+          <div className="rounded-xl border p-3">
             <div className="text-sm text-neutral-500">Velocity</div>
-            <div className="text-2xl font-semibold">{Math.round(topic.velocity * 100)}%</div>
+            <div className="text-2xl font-semibold">{Math.round((topic.velocity || 0) * 100)}%</div>
           </div>
           <div className="rounded-xl border p-3">
             <div className="text-sm text-neutral-500">Spread</div>
             <div className="text-2xl font-semibold">{topic.spread}</div>
           </div>
           <div className="rounded-xl border p-3">
-            <div className="text-sm text-neutral-500">Sentiment</div>
-            <div className="text-2xl font-semibold">{topic.sentiment}</div>
+            <div className="text-sm text-neutral-500">Authority</div>
+            <div className="text-2xl font-semibold">{Math.round((topic.authority || 0) * 100)}%</div>
+          </div>
+          <div className="rounded-xl border p-3">
+            <div className="text-sm text-neutral-500">Novelty</div>
+            <div className="text-2xl font-semibold">{Math.round((topic.novelty || 0) * 100)}%</div>
           </div>
         </div>
         <Section title="Timeline 72h" action={<Badge>demo</Badge>}>
@@ -124,8 +133,8 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [openTopic, setOpenTopic] = useState(null);
   
-  // Backend data
-  const [articles, setArticles] = useState([]);
+  // Backend data - Phase 2: real topics from ML clustering
+  const [rawTopics, setRawTopics] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -140,38 +149,38 @@ export default function App() {
   async function loadData() {
     setLoading(true);
     setError(null);
+    console.log('🔄 Loading topics from API...');
     try {
-      const [articlesData, statsData] = await Promise.all([
-        getArticles({ limit: 100 }),
+      const [topicsData, statsData] = await Promise.all([
+        getTopics({ limit: 50, sort_by: 'pulse_score' }),
         getStats(),
       ]);
-      setArticles(articlesData);
+      console.log('✅ Received topics:', topicsData);
+      console.log('✅ Received stats:', statsData);
+      // Transform topics to UI format
+      const transformed = topicsData.map(transformTopic);
+      console.log('✅ Transformed topics:', transformed);
+      setRawTopics(transformed);
       setStats(statsData);
     } catch (err) {
-      console.error('Failed to load data:', err);
+      console.error('❌ Failed to load data:', err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
   }
 
-  // Group articles into topics
-  const allTopics = useMemo(() => {
-    if (!articles.length) return [];
-    return groupArticlesByTopic(articles);
-  }, [articles]);
-
-  // Filter topics
+  // Filter topics (no grouping needed - ML already clustered them!)
   const topics = useMemo(() => {
-    let filtered = [...allTopics];
+    let filtered = [...rawTopics];
     if (country !== "ALL") filtered = filtered.filter(t => t.country === country);
     if (sector !== "Tutti") filtered = filtered.filter(t => t.sector === sector);
     if (query) filtered = filtered.filter(t => 
-      t.title.toLowerCase().includes(query.toLowerCase()) || 
+      t.title.toLowerCase().includes(query.toLowerCase()) ||
       t.summary.toLowerCase().includes(query.toLowerCase())
     );
     return filtered.sort((a, b) => b.pulse - a.pulse);
-  }, [allTopics, country, sector, query]);
+  }, [rawTopics, country, sector, query]);
 
   return (
     <div className="min-h-screen bg-neutral-50">

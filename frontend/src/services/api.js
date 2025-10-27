@@ -133,68 +133,78 @@ export async function scrapeArticlesNow({
 }
 
 /**
- * Transform article to topic format for UI
+ * Get topics with Pulse metrics (Phase 2)
  */
-export function articleToTopic(article) {
-  return {
-    id: article.id,
-    title: article.title,
-    summary: article.content?.substring(0, 150) + '...' || '',
-    country: article.country || 'GLOBAL',
-    sector: article.sector || 'News',
-    pulse: Math.round(article.engagement_score * 100) || 50,
-    velocity: article.engagement_score || 0.5,
-    spread: 1,
-    sentiment: article.sentiment_score || 0,
-    sources: [article.source],
-    published_at: article.published_at,
-    url: article.url,
-    language: article.language,
-  };
+export async function getTopics({
+  limit = 20,
+  sort_by = 'pulse_score',
+  country = null,
+  sector = null,
+} = {}) {
+  const params = new URLSearchParams();
+  params.append('limit', limit);
+  params.append('sort_by', sort_by);
+  if (country) params.append('country', country);
+  if (sector) params.append('sector', sector);
+
+  return fetchAPI(`/api/topics?${params.toString()}`);
 }
 
 /**
- * Group articles by similar titles (basic topic clustering)
+ * Get single topic by ID
  */
-export function groupArticlesByTopic(articles) {
-  const topics = new Map();
-  
-  articles.forEach(article => {
-    // Simple keyword extraction from title
-    const keywords = article.title
-      .toLowerCase()
-      .split(/\s+/)
-      .filter(w => w.length > 4)
-      .slice(0, 3)
-      .sort()
-      .join(' ');
-    
-    if (!topics.has(keywords)) {
-      topics.set(keywords, {
-        id: `topic-${topics.size}`,
-        title: article.title,
-        summary: article.content?.substring(0, 150) + '...' || '',
-        country: article.country || 'GLOBAL',
-        sector: article.sector || 'News',
-        pulse: 50,
-        velocity: 0.5,
-        spread: 1,
-        sentiment: article.sentiment_score || 0,
-        sources: [article.source],
-        articles: [article],
-        published_at: article.published_at,
-      });
-    } else {
-      const topic = topics.get(keywords);
-      topic.sources.push(article.source);
-      topic.articles.push(article);
-      topic.spread = topic.articles.length;
-      // Update pulse based on article count
-      topic.pulse = Math.min(100, 50 + (topic.articles.length * 10));
-      topic.velocity = Math.min(1, 0.5 + (topic.articles.length * 0.1));
-    }
+export async function getTopic(topicId) {
+  return fetchAPI(`/api/topics/${topicId}`);
+}
+
+/**
+ * Get articles for a specific topic
+ */
+export async function getTopicArticles(topicId, limit = 50) {
+  const params = new URLSearchParams();
+  params.append('limit', limit);
+  return fetchAPI(`/api/topics/${topicId}/articles?${params.toString()}`);
+}
+
+/**
+ * Refresh metrics for a specific topic
+ */
+export async function refreshTopicMetrics(topicId) {
+  return fetchAPI(`/api/topics/${topicId}/refresh`, {
+    method: 'POST',
   });
-  
-  return Array.from(topics.values())
-    .sort((a, b) => b.pulse - a.pulse);
+}
+
+/**
+ * Refresh metrics for all topics
+ */
+export async function refreshAllMetrics() {
+  return fetchAPI('/api/topics/refresh-all', {
+    method: 'POST',
+  });
+}
+
+/**
+ * Transform backend topic to UI format
+ */
+export function transformTopic(topic) {
+  return {
+    id: topic.topic_id,
+    title: topic.label,
+    summary: topic.description || '',
+    keywords: topic.keywords || [],
+    country: topic.country || 'GLOBAL',
+    sector: topic.sector || 'News',
+    pulse: Math.round(topic.pulse_score),
+    velocity: topic.velocity,
+    spread: topic.spread,
+    authority: topic.authority,
+    novelty: topic.novelty,
+    volume: topic.volume,
+    sentiment: topic.sentiment_avg || 0,
+    sources: topic.sources || [],
+    article_count: topic.article_count || 0,
+    first_seen: topic.first_seen,
+    last_updated: topic.last_updated,
+  };
 }

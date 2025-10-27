@@ -50,8 +50,9 @@ async def health():
 
 
 # Import API routers
-from api import articles, scraping, stats
+from api import articles, scraping, stats, topics
 
 app.include_router(articles.router, prefix="/api/articles", tags=["articles"])
 app.include_router(scraping.router, prefix="/api/scraping", tags=["scraping"])
 app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
+app.include_router(topics.router, tags=["topics"])  # Already has /api/topics prefix

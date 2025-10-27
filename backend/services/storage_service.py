@@ -29,9 +29,16 @@ class StorageService:
         
         try:
             saved = []
+            seen_ids = set()  # Track IDs in current batch
             
             for article_data in articles:
-                # Check se già esiste
+                # Check batch duplicates first
+                batch_key = f"{article_data.source}:{article_data.source_id}"
+                if batch_key in seen_ids:
+                    print(f"⚠️  Batch duplicate skipped: {batch_key}")
+                    continue
+                
+                # Check se già esiste in DB
                 existing = db.query(Article).filter(
                     and_(
                         Article.source == article_data.source,
@@ -40,8 +47,10 @@ class StorageService:
                 ).first()
                 
                 if existing:
-                    print(f"⚠️  Duplicate skipped: {article_data.source}:{article_data.source_id}")
+                    print(f"⚠️  DB duplicate skipped: {batch_key}")
                     continue
+                
+                seen_ids.add(batch_key)
                 
                 # Crea nuovo article
                 article_dict = article_data.model_dump()

@@ -7,13 +7,76 @@ e questo progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
 
 ## [Unreleased]
 
-### Planned for Phase 2
-- BERTopic integration per topic modeling
-- Sentence-transformers per embeddings multilingue
-- Calcolo metriche Pulse (volume, velocity, spread, authority, novelty)
-- Topic clustering e aggregazione
-- Celery per scheduled jobs
+### Planned for Phase 3
+- Celery per scheduled jobs automatici
+- Background tasks per scraping periodico
+- Automatic topic recalculation
 - PostgreSQL migration da SQLite
+- Redis caching layer
+
+## [0.3.0] - 2025-10-27
+
+### Added - Phase 2 Complete: ML Topic Clustering & Pulse Metrics
+- ✅ **Topic Service** (`services/topic_service.py`)
+  - ML-based clustering con sentence-transformers
+  - Embeddings multilingue 768-dim (paraphrase-multilingual-mpnet-base-v2)
+  - K-Means clustering con automatic cluster count
+  - TF-IDF keyword extraction
+  - Auto-labeling dei topic da titoli articoli
+  - Batch deduplication per evitare conflitti
+
+- ✅ **Metrics Service** (`services/metrics_service.py`)
+  - **Volume**: count articoli ultimi 24h
+  - **Velocity**: crescita percentuale (-1.0 a +∞)
+  - **Spread**: numero fonti distinte
+  - **Authority**: credibilità media fonti (0.0-1.0)
+  - **Novelty**: freschezza topic (0.0-1.0)
+  - **PulseScore**: formula composita pesata
+  - Update automatico di tutti i topic
+
+- ✅ **Topics API** (`api/topics.py`)
+  - `GET /api/topics` - Lista con filtri e sorting
+  - `GET /api/topics/:id` - Dettagli singolo topic
+  - `GET /api/topics/:id/articles` - Articoli del topic
+  - `POST /api/topics/:id/refresh` - Ricalcola metrics
+  - `POST /api/topics/refresh-all` - Aggiorna tutti
+
+- ✅ **Database Schema**
+  - Tabella `topics` con tutti i metrics
+  - Foreign key `articles.topic_id` → `topics.topic_id`
+  - TopicWithSources model con `article_count` e `sources`
+
+- ✅ **Frontend Integration**
+  - Rimosso mock `groupArticlesByTopic`
+  - API client aggiornato con `getTopics()`, `getTopic()`, `getTopicArticles()`
+  - `transformTopic()` per mapping backend → UI
+  - Display real-time di 6 metrics: PulseScore, Volume, Velocity, Spread, Authority, Novelty
+  - TrendCard con metrics reali
+  - TopicDrawer con grid 3x2 per tutti i metrics
+
+- ✅ **ML Dependencies**
+  - sentence-transformers 2.3.1
+  - scikit-learn 1.7.2 (K-Means, TF-IDF)
+  - numpy, scipy, umap-learn, plotly
+
+### Changed
+- Storage Service ora gestisce batch deduplication
+- CORS aggiornato per supportare porte 3000-3001
+- Frontend carica topic da ML invece di raggruppamento client-side
+
+### Fixed
+- ARM64 Mac compatibility (dropped hdbscan, custom K-Means implementation)
+- SQLAlchemy Base import issues risolti
+- DetachedInstanceError nel test clustering
+- UNIQUE constraint conflicts con batch deduplication
+- TopicWithSources.article_count mancante nel model
+
+### Technical Details
+- 35 articoli ANSA → 4 topic clusters
+- Embeddings generati in ~2.5s per 22 articoli
+- Topics con labels italiani auto-generati
+- Sistema end-to-end funzionante: scraping → clustering → metrics → frontend
+- Test POC validato con successo
 
 ## [0.2.0] - 2025-10-27
 
@@ -90,6 +153,7 @@ e questo progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
 - UI wireframe completo
 - Documentazione README
 
-[Unreleased]: https://github.com/ZenoDevs/Pulse/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/ZenoDevs/Pulse/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/ZenoDevs/Pulse/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ZenoDevs/Pulse/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ZenoDevs/Pulse/releases/tag/v0.1.0

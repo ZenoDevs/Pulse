@@ -2,12 +2,12 @@
 Modelli per i Topic e le metriche Pulse
 """
 from sqlalchemy import Column, Integer, String, Text, DateTime, Float, JSON
-from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 from pydantic import BaseModel
 from typing import Optional, List
 
-Base = declarative_base()
+# Import Base from database to use same declarative base
+from models.database import Base
 
 
 class Topic(Base):
@@ -15,22 +15,22 @@ class Topic(Base):
     __tablename__ = "topics"
     
     id = Column(Integer, primary_key=True, index=True)
-    topic_id = Column(Integer, unique=True, index=True)  # ID BERTopic
+    topic_id = Column(String(50), unique=True, index=True)  # e.g., "topic_0", "topic_1"
     
     label = Column(String(255))
     keywords = Column(JSON)  # Lista di keyword principali
     description = Column(Text)
     
     # Metriche Pulse
-    pulse_score = Column(Float, index=True)
-    volume = Column(Integer)        # Numero articoli
-    velocity = Column(Float)        # Crescita % nelle ultime 24h
-    spread = Column(Integer)        # Numero fonti diverse
-    authority = Column(Float)       # Media authority_score degli articoli
-    novelty = Column(Float)         # Quanto è "nuovo" il topic
-    variance = Column(Float)        # Varianza sentimenti
+    pulse_score = Column(Float, index=True, default=0.0)
+    volume = Column(Integer, default=0)        # Numero articoli
+    velocity = Column(Float, default=0.0)      # Crescita % nelle ultime 24h
+    spread = Column(Integer, default=0)        # Numero fonti diverse
+    authority = Column(Float, default=0.0)     # Media authority_score degli articoli
+    novelty = Column(Float, default=0.0)       # Quanto è "nuovo" il topic
+    variance = Column(Float, default=0.0)      # Varianza sentimenti
     
-    sentiment_avg = Column(Float)
+    sentiment_avg = Column(Float, default=0.0)
     
     # Metadata
     country = Column(String(10), index=True)
@@ -47,7 +47,7 @@ class Topic(Base):
 class TopicSchema(BaseModel):
     """Schema per API"""
     id: int
-    topic_id: int
+    topic_id: str  # Changed to string
     label: str
     keywords: List[str]
     description: Optional[str] = None
@@ -56,6 +56,8 @@ class TopicSchema(BaseModel):
     volume: int
     velocity: float
     spread: int
+    authority: float = 0.0
+    novelty: float = 0.0
     sentiment_avg: Optional[float] = None
     
     country: Optional[str] = None
@@ -69,6 +71,7 @@ class TopicSchema(BaseModel):
 
 
 class TopicWithSources(TopicSchema):
-    """Topic con lista fonti"""
+    """Topic con lista fonti e count articoli"""
     sources: List[str] = []
+    article_count: int = 0
     sample_articles: List[dict] = []

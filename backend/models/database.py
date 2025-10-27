@@ -48,7 +48,13 @@ def get_db() -> Generator[Session, None, None]:
 
 def init_db():
     """Inizializza il database creando tutte le tabelle"""
-    from models.article import Article, Base
+    # Import all models to register them with Base
+    from models.article import Article
     from models.topic import Topic
+    
+    # Create all tables
     Base.metadata.create_all(bind=engine)
-    print(f"✅ Created tables: {Base.metadata.tables.keys()}")
+    
+    # List created tables
+    tables = list(Base.metadata.tables.keys())
+    print(f"✅ Database tables: {tables}")

@@ -15,11 +15,11 @@ Pulse aggregates content from multiple sources (RSS, Reddit, YouTube, GDELT, Hac
 - ✅ **Multi-Source Ingestion**: Modular scraper system (ANSA, Reddit, HackerNews)
 - ✅ **Content Processing**: HTML cleaning, date normalization, deduplication
 - ✅ **Language Detection**: Automatic language & country detection with entity extraction
-- ✅ **REST API**: Complete FastAPI backend with articles, stats, and scraping endpoints
-- ✅ **Real-time Dashboard**: React frontend with topic cards, filters, and statistics
+- ✅ **REST API**: Complete FastAPI backend with articles, stats, scraping, and topics endpoints
+- ✅ **Real-time Dashboard**: React frontend with topic cards, filters, and live metrics
 - ✅ **Storage Service**: SQLite database with full CRUD operations
-- 🚧 **Topic Discovery**: BERTopic with multilingual embeddings (planned)
-- 🚧 **Pulse Metrics**: Volume, Velocity, Spread, Authority, Novelty (planned)
+- ✅ **Topic Discovery**: ML-based clustering with sentence-transformers + K-Means
+- ✅ **Pulse Metrics**: Volume, Velocity, Spread, Authority, Novelty, PulseScore
 - 🚧 **Forecasting**: ETS/Holt-Winters for trend prediction (planned)
 
 ---
@@ -32,7 +32,8 @@ Pulse/
 │   ├── api/                 # REST API endpoints
 │   │   ├── articles.py      # Article CRUD & filtering
 │   │   ├── stats.py         # Statistics & analytics
-│   │   └── scraping.py      # Scraper management & triggers
+│   │   ├── scraping.py      # Scraper management & triggers
+│   │   └── topics.py        # Topics, metrics & clustering
 │   ├── config/              # Configuration (settings.py)
 │   ├── models/              # Database models (SQLAlchemy + Pydantic)
 │   │   ├── database.py      # DB setup & session management
@@ -47,7 +48,9 @@ Pulse/
 │   ├── services/            # Business logic
 │   │   ├── parser_service.py    # HTML cleaning & normalization
 │   │   ├── language_service.py  # Language detection & geo-tagging
-│   │   └── storage_service.py   # Database operations
+│   │   ├── storage_service.py   # Database operations
+│   │   ├── topic_service.py     # ML clustering & topic detection
+│   │   └── metrics_service.py   # Pulse metrics calculation
 │   ├── main.py              # FastAPI app with CORS
 │   ├── requirements.txt     # Python dependencies
 │   └── test_*.py            # Unit tests for services
@@ -138,6 +141,11 @@ print(f'Scraped {len(articles)} articles')
 - `GET /api/stats/overview` - Get statistics (total, by source, language, country)
 - `GET /api/scraping/sources` - List available scrapers
 - `POST /api/scraping/run` - Trigger scraping for a source
+- `GET /api/topics` - List topics with Pulse metrics (sort by pulse_score, volume, velocity, novelty)
+- `GET /api/topics/:id` - Get single topic with details
+- `GET /api/topics/:id/articles` - Get all articles for a topic
+- `POST /api/topics/:id/refresh` - Recalculate metrics for a topic
+- `POST /api/topics/refresh-all` - Refresh all topics metrics
 
 ---
 
@@ -158,17 +166,19 @@ print(f'Scraped {len(articles)} articles')
 - [x] API integration layer (services/api.js)
 - [x] Real-time dashboard with filters
 
-### 🚧 **Phase 2: Topic Detection & Analytics** (Next)
-- [ ] Implement sentence-transformers for embeddings
-- [ ] BERTopic integration for topic clustering
-- [ ] Topic model & database schema
-- [ ] Pulse metrics calculation (volume, velocity, spread, authority, novelty)
-- [ ] PulseScore formula implementation
-- [ ] Topic grouping algorithm
-- [ ] Enhanced API endpoints for topics
-- [ ] Topic detail drawer with real data
+### ✅ **Phase 2: Topic Detection & Analytics** (Completed)
+- [x] Sentence-transformers for multilingual embeddings (paraphrase-multilingual-mpnet-base-v2)
+- [x] Custom K-Means clustering for topic detection
+- [x] Topic model & database schema with all metrics
+- [x] Pulse metrics calculation (volume, velocity, spread, authority, novelty)
+- [x] PulseScore composite formula implementation
+- [x] Topic clustering algorithm with TF-IDF keyword extraction
+- [x] Enhanced API endpoints for topics (GET /api/topics, /api/topics/:id, /api/topics/:id/articles)
+- [x] Topic detail drawer with real-time metrics
+- [x] Frontend integration with live data from ML clustering
+- [x] Automatic topic-article linking with topic_id foreign key
 
-### 📅 **Phase 3: Scheduled Jobs & Automation**
+### � **Phase 3: Scheduled Jobs & Automation** (Next)
 - [ ] Celery setup for background tasks
 - [ ] Scheduled scraping jobs (configurable intervals)
 - [ ] Automatic topic recalculation
@@ -253,8 +263,9 @@ curl -X POST http://localhost:8000/api/scraping/run \
 - **feedparser** - RSS feed parsing
 - **PRAW** - Reddit API client
 - **langdetect** - Language detection
-- **spaCy** - NLP & entity extraction (planned for Phase 2)
-- **sentence-transformers** - Embeddings (planned for Phase 2)
+- **sentence-transformers** - Multilingual embeddings for topic clustering
+- **scikit-learn** - K-Means clustering & TF-IDF keyword extraction
+- **numpy** - Numerical computing for embeddings
 
 ### Frontend
 - **React 18.2** - UI framework
@@ -291,29 +302,30 @@ CREATE TABLE articles (
 )
 ```
 
-### Topics Table (Planned for Phase 2)
+### Topics Table (Implemented in Phase 2)
 ```sql
 CREATE TABLE topics (
     id INTEGER PRIMARY KEY,
-    topic_id VARCHAR(50),         -- BERTopic cluster ID
-    label VARCHAR(255),
-    keywords JSON,                -- Top keywords
-    description TEXT,
-    pulse_score FLOAT,            -- Composite metric
-    volume INTEGER,
-    velocity FLOAT,
-    spread INTEGER,
-    authority FLOAT,
-    novelty FLOAT,
-    variance FLOAT,
-    sentiment_avg FLOAT,
-    country VARCHAR(10),
-    sector VARCHAR(50),
-    first_seen DATETIME,
-    last_updated DATETIME,
-    history JSON                  -- Time series for forecasting
+    topic_id VARCHAR(50) UNIQUE,  -- e.g., "topic_0", "topic_1"
+    label VARCHAR(255),            -- Auto-generated topic label
+    keywords JSON,                 -- Top keywords from TF-IDF
+    description TEXT,              -- Summary description
+    pulse_score FLOAT,             -- Composite metric (weighted formula)
+    volume INTEGER,                -- Articles in last 24h
+    velocity FLOAT,                -- Growth rate (-1.0 to +∞)
+    spread INTEGER,                -- Number of distinct sources
+    authority FLOAT,               -- Source credibility (0.0-1.0)
+    novelty FLOAT,                 -- Topic freshness (0.0-1.0)
+    variance FLOAT,                -- Statistical variance
+    sentiment_avg FLOAT,           -- Average sentiment
+    country VARCHAR(10),           -- Geographic focus
+    sector VARCHAR(50),            -- Category
+    first_seen DATETIME,           -- First article timestamp
+    last_updated DATETIME          -- Last metrics update
 )
 ```
+
+**Articles-Topics Link**: `articles.topic_id` → `topics.topic_id` (foreign key)
 
 ---
 
@@ -350,7 +362,12 @@ REDDIT_CLIENT_SECRET=your_secret
 
 ## 📝 License
 
-MIT License - see [LICENSE](LICENSE) file.
+**Proprietary License** - All Rights Reserved
+
+This software is proprietary and confidential. Unauthorized copying, distribution, 
+or use is strictly prohibited. See [LICENSE](LICENSE) file for details.
+
+For licensing inquiries: info@zenodevs.com
 
 ---
 
@@ -387,11 +404,14 @@ Contributions are welcome! Please:
 
 ## ✅ Current Status
 
-**Phase 1 Complete** - Core infrastructure with working scrapers, API, and dashboard
+**Phase 2 Complete** - ML-based topic clustering with real-time Pulse metrics
 
 - ✅ 3 scrapers operational (ANSA, Reddit, HackerNews)
 - ✅ Parser & Language services with NLP
-- ✅ REST API with 10+ endpoints
-- ✅ React dashboard with real-time data
-- ✅ 22+ articles scraped and processed
-- 🚧 Next: Topic clustering with BERTopic (Phase 2)
+- ✅ REST API with 15+ endpoints (articles, stats, scraping, topics)
+- ✅ React dashboard with real-time data and live metrics
+- ✅ ML topic clustering with sentence-transformers (768-dim embeddings)
+- ✅ 6 Pulse metrics calculated: Volume, Velocity, Spread, Authority, Novelty, PulseScore
+- ✅ 35+ articles clustered into 4 topics with automatic labeling
+- ✅ Frontend displays real ML-generated topics with live metrics
+- 🚧 Next: Scheduled jobs & automation (Phase 3)

@@ -2,12 +2,12 @@
 Modelli dati per gli articoli/contenuti
 """
 from sqlalchemy import Column, Integer, String, Text, DateTime, Float, JSON, Index
-from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field
 
-Base = declarative_base()
+# Import Base from database to use same declarative base
+from models.database import Base
 
 
 class Article(Base):
@@ -36,7 +36,7 @@ class Article(Base):
     
     # ML fields
     embedding_vector = Column(JSON)  # Salviamo come JSON per PostgreSQL
-    topic_id = Column(Integer, index=True)  # ID del topic BERTopic
+    topic_id = Column(String(50), index=True)  # ID del topic BERTopic (e.g., "topic_0")
     sentiment_score = Column(Float)
     
     # Extra metadata
