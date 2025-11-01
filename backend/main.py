@@ -28,6 +28,19 @@ async def startup_event():
     print(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     init_db()
     print("✅ Database initialized")
+    
+    # Initialize scheduler for automated jobs
+    from jobs.scheduler import init_scheduler
+    init_scheduler()
+    print("✅ Scheduler initialized")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Graceful shutdown"""
+    from jobs.scheduler import shutdown_scheduler
+    shutdown_scheduler()
+    print("👋 Scheduler shutdown complete")
 
 
 @app.get("/")
@@ -50,9 +63,10 @@ async def health():
 
 
 # Import API routers
-from api import articles, scraping, stats, topics
+from api import articles, scraping, stats, topics, health
 
 app.include_router(articles.router, prefix="/api/articles", tags=["articles"])
 app.include_router(scraping.router, prefix="/api/scraping", tags=["scraping"])
 app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 app.include_router(topics.router, tags=["topics"])  # Already has /api/topics prefix
+app.include_router(health.router, prefix="/api")  # /api/health
